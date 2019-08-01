@@ -22,11 +22,14 @@ def shrink_all(x, size):
 def train_model(images, num_classes, batch_size=32, epochs=50):
     model = Sequential()
 
-    model.add(GRU(units=256, input_shape=(None, num_classes), return_sequences=True))
+    model.add(
+        GRU(units=256, input_shape=(None, num_classes), return_sequences=True)
+    )
     model.add(TimeDistributed(Dense(units=num_classes)))
     model.add(Activation(activation='softmax'))
 
-    model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+    model.compile(optimizer='adam', loss='categorical_crossentropy',
+                  metrics=['accuracy'])
     model.summary()
 
     h, w = images[0].shape
@@ -37,6 +40,10 @@ def train_model(images, num_classes, batch_size=32, epochs=50):
 
     m = len(xs)
 
+    xs = np.hstack(
+        (np.zeros((m, 1, num_classes)), xs[:, 0:, :])
+    )
+
     ys = np.hstack(
         (xs[:, 1:, :], np.zeros((m, 1, num_classes)))
     )
@@ -45,19 +52,16 @@ def train_model(images, num_classes, batch_size=32, epochs=50):
     return model
 
 
-def visualize_predictions(images):
-    from PIL import ImageDraw, Image
-
-
 def sample(model, image_size, num_classes):
     pixels = np.zeros((image_size ** 2, 1), dtype=np.uint8)
     for i in range(1, image_size ** 2):
-        prefix = to_categorical(pixels[:i].reshape(1, i), num_classes=num_classes).reshape(1, i, num_classes)
+        prefix = to_categorical(
+            pixels[:i].reshape(1, i), num_classes=num_classes
+        ).reshape(1, i, num_classes)
 
         indices = list(range(num_classes))
         indx = np.random.choice(indices, p=model.predict(prefix)[0][-1])
         yhat = indx
-        #yhat = model.predict_classes(prefix)[0][-1]
         pixels[i] = yhat
 
     return pixels

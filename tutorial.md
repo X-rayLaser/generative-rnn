@@ -6,12 +6,11 @@ framework. Specifically, we are going to treat each image as a
 sequence of pixel intensities. We are going to train RNNs to 
 predict the next pixel given all the preceding ones. After the 
 training is complete, we will be able to sample newish images 
-from this network.
+from this network. As a bonus, we will apply the model for 
+an image classification task.
 
 To save computational resources, I will concentrate on using 
-MNIST and CIFAR-10 datasets for that purpose. But anyone is 
-welcomed to experiment with bigger images. So. Without further 
-due, let's begin.
+MNIST and CIFAR-10 datasets.
 
 ## Prerequisites
 First, we need to set up the environment. We create a new folder for
@@ -97,5 +96,108 @@ datasets for our purposes are provided by Keras.
 
 
 ## Building RNN for generating MNIST images
+
+### What is a generative model?
+Very briefly, the generative model attempts to learn the conditional 
+probability of x given y. In the context of image classification, 
+this translates to calculating the probability of a particular 
+sequence of pixel intensities given that this is an image of a digit 
+"9". After the probability distribution is obtained, we can use a 
+Bayes Rule to calculate the probability of y given x.
+What makes generative models interesting is that they can be used 
+to generate examples. Among other things, this allows the ML 
+practitioner to see what their models actually learn.
+
+As a reminder, the conditional probability of x given y can be 
+expressed using the Law Of Total Probability. An important note. 
+If we knew that there is no correlation among any elements of a 
+feature vector, then we would only need to know the marginal 
+probabilities for each element of x. For images, this 
+assumption is wrong because nearby pixels are clearly correlated.
+
+In this tutorial, we use a model based on RNN to find those 
+probabilities. Specifically, the model will capture the 
+conditional probability distribution of pixel intensity value 
+given previously encountered intensities.
+
+#### Plan of attack
+The work can be split into 3 steps: pre-processing, training 
+and inference/sampling.
+
+**Pre-processing**
+
+First, we are going to shrink images to a manageable size and 
+quantize their intensities. This will both speed up the learning 
+process and increase prediction accuracy.
+Next, we will unroll all images into 1-dimensional vectors of 
+the same size. After that, 
+we will convert those vectors into sequences of one-hot encoded 
+vectors. For instance, if there are 4 possible values for pixel 
+intensity, then value 2 will be represented as a vector 
+[0, 0, 1, 0]T. 
+
+**Training**
+
+The objective of the model is to output probability distribution 
+over the next element given the prefix (and the prefix can be of 
+arbitrary length). The question is how to prepare training 
+examples for the model to learn. There is more than one way to 
+do this. For instance, one could create training data by getting 
+all possible pairs of prefixes and targets per sequence. E.g. 
+the sequence "word" would generate examples as follows 
+("start of input", "w"),
+("w", "o"), ("wo", "r"), ("wor", "d"), ("word", "end of input"). 
+Note that the target consists of only one element, therefore the 
+neural net has to be designed to only output a single prediction 
+for any input sequence.
+
+Another way is to leave all input sequences as they are and 
+produce output sequences by shifting input sequences by one to 
+the left. In other words, output sequences equal to input 
+sequences without the first element. However, because both 
+sequences need to be of the same length, the output sequence 
+should include the additional element at the end. This type of 
+element is called sentinel. With this method targets become 
+sequences of the same length as the input sequences. The neural 
+net has to be designed accordingly to accommodate this.
+
+Any of these two approaches can be used to convert images into 
+training pairs of sequences (x, y).
+
+After examples are created, training is performed in a usual
+supervised manner.
+
+**Sampling**
+
+
+**Inference**
+
+Once we train the model, it can be used to classify the image. 
+The classification consists of 3 ingredients.
+
+The first ingredient 
+involves finding the prior (unconditional) probability 
+distribution over image classes. In practice, those probabilities 
+can be interpreted as fractions of all images associated with a 
+given class. Note that MNIST dataset is very well balanced and 
+the (unconditional) probability to get an image with any digit 
+is close to 1/10. In fact, we do not need priors at all for 
+datasets like 
+this. However, it is important to account for priors in more 
+skewed cases.
+
+Next ingredient involves computing the conditional probability 
+of an image given y, for all y in 0,1,2...,9, where y is a 
+candidate for a correct class. This probability can be calculated 
+using the law of total probability and with the help of the RNN model.
+
+The final ingredient is a Bayes Rule. The Bayes Rule can be 
+used to calculate the posterior distribution of y given x. 
+The classification problem reduces to finding y that maximizes 
+the posterior probability.
+If we are only interested in classification rather than 
+probability estimates, there is an additional short cut that 
+we can take. Namely, we can get rid of the denominator in the 
+Bayes Rule formula and work only with the numerator.
 
 Now we will begin implementing an RNN model.
