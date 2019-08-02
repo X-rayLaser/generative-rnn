@@ -6,6 +6,21 @@ from keras.models import Sequential
 from keras.layers import GRU, TimeDistributed, Dense, Activation
 
 
+def create_model(one_hot_len):
+    model = Sequential()
+
+    model.add(
+        GRU(units=256, input_shape=(None, one_hot_len), return_sequences=True)
+    )
+    model.add(TimeDistributed(Dense(units=one_hot_len)))
+    model.add(Activation(activation='softmax'))
+
+    model.compile(optimizer='adam', loss='categorical_crossentropy',
+                  metrics=['accuracy'])
+    model.summary()
+    return model
+
+
 def shrink(im, size):
     return img_as_ubyte(transform.resize(im, (size, size)))
 
@@ -19,18 +34,14 @@ def shrink_all(x, size):
     return np.array(resized)
 
 
+def pre_process(images, target_size, divisor):
+    images = shrink_all(images, target_size)
+    images = np.array(np.round(images / divisor), dtype=np.uint8)
+    return images
+
+
 def train_model(images, num_classes, batch_size=32, epochs=50):
-    model = Sequential()
-
-    model.add(
-        GRU(units=256, input_shape=(None, num_classes), return_sequences=True)
-    )
-    model.add(TimeDistributed(Dense(units=num_classes)))
-    model.add(Activation(activation='softmax'))
-
-    model.compile(optimizer='adam', loss='categorical_crossentropy',
-                  metrics=['accuracy'])
-    model.summary()
+    model = create_model(num_classes)
 
     h, w = images[0].shape
 

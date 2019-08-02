@@ -120,7 +120,66 @@ probabilities. Specifically, the model will capture the
 conditional probability distribution of pixel intensity value 
 given previously encountered intensities.
 
-#### Plan of attack
+### Model architecture
+Now we will begin implementing an RNN model.
+As a quick reminder, here is how RNNs work. A typical RNN inputs 
+a vector and produces another vector as an output. The output 
+depends not only on the current input but on all the previous 
+inputs. Note that input and output vectors do not need to be of 
+the same length.
+
+Depending on the problem at hand, one might add an additional 
+layer on top of the RNN layer. One would add a linear layer 
+(that is a layer without activation) or "RELU" layer if one 
+wishes to perform regression. Whereas the softmax layer is 
+used for a classification task.
+
+Our model will be relatively shallow. It will only include a 
+Gated Recurrent Layer (GRU) followed by a fully-connected layer 
+with a softmax activation. 
+It will receive a sequence of vectors with one-hot encoding as 
+input and output a sequence of predictions. That is we choose an 
+architecture that produces an output vector for each input vector 
+in the sequence. GRU layer will have 256 units for representing 
+the state. Last fully-connected layer will output a sequence of 
+Probability Mass Functions over possible values of pixel intensities.
+
+Note that for this problem input vectors and output vectors must 
+have the same length. The length of vectors will depend on the 
+maximum intensity parameter that we will specify later. 
+Concretely, if maximum intensity equals to 3, then there are 4 
+different levels such as 0, 1, 2 and 3. Therefore, one-hot 
+encoding vectors will be of length 4.
+
+Let's write a function that creates this model and creatively 
+name it "create_model". It will have one parameter, specifying 
+the length of vectors in the sequence.
+```
+def create_model(one_hot_len):
+    model = Sequential()
+
+    model.add(
+        GRU(units=256, input_shape=(None, one_hot_len), return_sequences=True)
+    )
+    model.add(TimeDistributed(Dense(units=one_hot_len)))
+    model.add(Activation(activation='softmax'))
+
+    model.compile(optimizer='adam', loss='categorical_crossentropy',
+                  metrics=['accuracy'])
+    model.summary()
+    return model
+```
+
+
+A few remarks here. First, to output predictions for every 
+element in the input sequence, the "return_sequences" option 
+for GRU initializer is set to True. Second, to apply a dense 
+layer to each output of the GRU layer, we wrap it in 
+TimeDistributed layer. Finally, notice how input_shape parameter 
+is used. "None" indicates that we'd like our model to process 
+sequences of any size.
+
+### Plan of attack
 The work can be split into 3 steps: pre-processing, training 
 and inference/sampling.
 
