@@ -34,20 +34,23 @@ def shrink_all(x, size):
     return np.array(resized)
 
 
-def pre_process(images, target_size, divisor):
-    images = shrink_all(images, target_size)
-    images = np.array(np.round(images / divisor), dtype=np.uint8)
-    return images
+def pre_process(images):
+    import config
 
-
-def train_model(images, num_classes, batch_size=32, epochs=50):
-    model = create_model(num_classes)
+    images = shrink_all(images, config.target_size)
+    images = np.array(np.round(images / config.factor), dtype=np.uint8)
 
     h, w = images[0].shape
 
-    xs = to_categorical(images, num_classes=num_classes).reshape(
-        -1, h ** 2, num_classes
+    xs = to_categorical(images, num_classes=config.num_classes).reshape(
+        -1, h ** 2, config.num_classes
     )
+
+    return xs
+
+
+def train_model(xs, num_classes, batch_size=32, epochs=50):
+    model = create_model(num_classes)
 
     m = len(xs)
 

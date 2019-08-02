@@ -1,7 +1,7 @@
 import numpy as np
 from keras.datasets import mnist
 import config
-from util import shrink_all, train_model
+from util import shrink_all, train_model, pre_process
 
 
 def train(digit=0, num_images=100, epochs=50):
@@ -11,16 +11,13 @@ def train(digit=0, num_images=100, epochs=50):
     x_train = x_train
     y_train = y_train
 
-    im_size = config.target_size
-
     x_train = x_train[(y_train == digit)]
 
     x_train = x_train[:num_images]
 
-    x_train = shrink_all(x_train, im_size)
-    x_train = np.array(np.round(x_train / config.factor), dtype=np.uint8)
+    xs = pre_process(x_train)
 
-    model = train_model(x_train, config.num_classes, epochs=epochs)
+    model = train_model(xs, config.num_classes, epochs=epochs)
 
     model.save('trained/mnist_models/model_{}.h5'.format(digit))
 

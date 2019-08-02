@@ -259,4 +259,86 @@ probability estimates, there is an additional short cut that
 we can take. Namely, we can get rid of the denominator in the 
 Bayes Rule formula and work only with the numerator.
 
-Now we will begin implementing an RNN model.
+### Implementing pre-processing subroutine
+We keep adding functions to the "util.py" file. First, we 
+create a "shrink" function.
+
+```
+def shrink(im, size):
+    return img_as_ubyte(transform.resize(im, (size, size)))
+```
+
+It takes an image represented as a Numpy array with 2 dimensions 
+and a target size of the image. It returns the image shrunk to 
+the target size.
+
+Second, we create a "shrink_all" function.
+```
+def shrink_all(x, size):
+    resized = []
+    for i in range(len(x)):
+        im = shrink(x[i], size)
+        resized.append(im)
+
+    return np.array(resized)
+```
+It is similar to "shrink" function we just implemented. The only 
+difference is that it takes and returns a collection of images.
+
+Lastly, we create a function "pre_process".
+```
+def pre_process(images):
+    import config
+
+    images = shrink_all(images, config.target_size)
+    images = np.array(np.round(images / config.factor), dtype=np.uint8)
+
+    h, w = images[0].shape
+
+    xs = to_categorical(images, num_classes=config.num_classes).reshape(
+        -1, h ** 2, config.num_classes
+    )
+
+    return xs
+```
+
+The function takes a Numpy array of images and returns a sequence 
+of one-hot vector representations.
+
+### Implementing training subroutine
+Let's create a function train_model in the util.py file. 
+This function will create a Keras model, fit it on the data and 
+return it back to the caller.
+
+The function has a few parameters. 
+"xs" represents the Numpy array of pixel sequences with shape 
+(number of images, sequence length, maximum intensity + 1). 
+"num_classes" represents the size of the one-hot encoded vectors 
+in the sequence (it equals to maximum intensity + 1). "batch_size" 
+controls the number of examples in the batch for a Gradient 
+Descent algorithm. Finally, "epochs" controls the number of 
+training epochs.
+```
+def train_model(xs, num_classes, batch_size=32, epochs=50):
+    model = create_model(num_classes)
+
+    m = len(xs)
+
+    xs = np.hstack(
+        (np.zeros((m, 1, num_classes)), xs[:, 0:, :])
+    )
+
+    ys = np.hstack(
+        (xs[:, 1:, :], np.zeros((m, 1, num_classes)))
+    )
+
+    model.fit(xs, ys, batch_size=batch_size, epochs=epochs)
+    return model
+```
+The function starts with creating a model. It then prepends a zero 
+vector to every sequence in "xs". Then it creates a batch of output 
+sequences by shifting all input sequences by one element. It 
+additionally adds a zero vector serving as a sentinel to every 
+output sequence. Finally, it fits a model using an advanced 
+optimizer called Adaptive Momentum (or Adam). Because the output 
+is a categorical variable we use the cross-entropy loss.
