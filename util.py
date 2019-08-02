@@ -4,6 +4,8 @@ from skimage.util import img_as_ubyte
 from keras.utils import to_categorical
 from keras.models import Sequential
 from keras.layers import GRU, TimeDistributed, Dense, Activation
+import os
+from keras.models import load_model
 
 
 def create_model(one_hot_len):
@@ -79,3 +81,33 @@ def sample(model, image_size, num_classes):
         pixels[i] = yhat
 
     return pixels
+
+
+def classify(models_dir, images):
+    xs = pre_process(images)
+    pixels = np.array(np.argmax(xs, axis=2), dtype=np.uint32)
+
+    m, Tx, n = xs.shape
+
+    xs_extra = np.hstack(
+        (np.zeros((m, 1, n)), xs[:, 0:, :])
+    )
+
+    image_indices = np.array([[i] * Tx for i in range(m)], dtype=np.uint32)
+    sequence_indices = np.zeros((m, Tx), dtype=np.uint32)
+    sequence_indices[:] = np.arange(Tx)
+
+    prob_x = np.zeros((10, m))
+
+    for k in range(10):
+        path = os.path.join(models_dir, 'model_{}.h5'.format(k))
+        model = load_model(path)
+
+        pmf_seqs = model.predict(xs_extra)
+
+        probabilities = pmf_seqs[image_indices, sequence_indices, pixels]
+
+        prob_x[k] = np.prod(probabilities, axis=1)
+
+    print(prob_x.max())
+    return np.argmax(prob_x, axis=0)

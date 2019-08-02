@@ -342,3 +342,30 @@ additionally adds a zero vector serving as a sentinel to every
 output sequence. Finally, it fits a model using an advanced 
 optimizer called Adaptive Momentum (or Adam). Because the output 
 is a categorical variable we use the cross-entropy loss.
+
+### Implementing classification
+Now it's time to write a function that performs classification 
+of a batch of images into K = 10 classes. The function name is 
+"classify". It takes 2 parameters: a path to the directory 
+containing generative models for each digit, and a Numpy array 
+of images of shape (number of images, height, width). The function 
+returns an array of class predictions, one class per image.
+
+This function makes heavy use of vectorization to optimize 
+computation, therefore it is harder to read. First, the function 
+pre-processes the images and turns them into sequences of one-hot 
+vectors. Then it prepends each sequence with zero vector for the 
+reasons explained earlier. Then, it creates 2 arrays of indices 
+and initializes array for storing a matrix of likelihoods. A kth 
+row of the matrix contains likelihoods of each image under the 
+assumption that the image belongs to class k.
+
+The code in the loop may seem especially difficult to understand. 
+Basically, it computes the conditional probability of a certain 
+pixel in the image given its prefix for all possible prefix 
+length. Then those probabilities are multiplied to estimate the 
+likelihood of the image if it came from class k. This 
+vectorized implementation allows computing likelihoods of 
+all images at once. Once the function computes likelihoods 
+using all K models, for each image it picks a class for which 
+the likelihood is the highest.

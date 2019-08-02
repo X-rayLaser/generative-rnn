@@ -30,7 +30,13 @@ if __name__ == '__main__':
     parser.add_argument('--digit', type=int, default=0)
     parser.add_argument('--num_images', type=int, default=100)
     parser.add_argument('--epochs', type=int, default=50)
+    parser.add_argument('--all_digits', type=bool, default=False)
 
     args = parser.parse_args()
 
-    train(digit=args.digit, num_images=args.num_images, epochs=args.epochs)
+    if args.all_digits:
+        for i in range(10):
+            train(digit=i, num_images=args.num_images, epochs=args.epochs)
+            print('Model for digit {} is finished'.format(i))
+    else:
+        train(digit=args.digit, num_images=args.num_images, epochs=args.epochs)
