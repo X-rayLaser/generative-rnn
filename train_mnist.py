@@ -19,7 +19,6 @@ def train(digit=0, num_images=100, epochs=50):
 
 if __name__ == '__main__':
     import argparse
-    import argparse
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--digit', type=int, default=0)

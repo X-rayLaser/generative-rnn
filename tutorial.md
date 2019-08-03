@@ -457,7 +457,7 @@ from util import train_model, pre_process
 
 
 def train(digit=0, num_images=100, epochs=50):
-    x_train, y_train, _ = mnist.load_data()
+    (x_train, y_train), _ = mnist.load_data()
 
     x_train = x_train[(y_train == digit)]
 
@@ -471,7 +471,6 @@ def train(digit=0, num_images=100, epochs=50):
 
 
 if __name__ == '__main__':
-    import argparse
     import argparse
 
     parser = argparse.ArgumentParser()
@@ -632,7 +631,7 @@ than previous ones.
 Finally, we are going to see how well are we doing on the 
 classification task. Let's run this command to get a 
 classification accuracy on all 10000 MNIST test images.
-This might take a few minutes to run. If you want to get a 
+This might take a few minutes to run. If you want to quickly get a 
 less accurate estimate, you may test it on 500 - 1000 
 examples instead.
 ```
