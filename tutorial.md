@@ -164,9 +164,6 @@ def create_model(one_hot_len):
     model.add(TimeDistributed(Dense(units=one_hot_len)))
     model.add(Activation(activation='softmax'))
 
-    model.compile(optimizer='adam', loss='categorical_crossentropy',
-                  metrics=['accuracy'])
-    model.summary()
     return model
 ```
 
@@ -294,9 +291,14 @@ def pre_process(images):
     images = np.array(np.round(images / config.factor), dtype=np.uint8)
 
     h, w = images[0].shape
+    m = len(images)
 
     xs = to_categorical(images, num_classes=config.num_classes).reshape(
         -1, h ** 2, config.num_classes
+    )
+
+    xs = np.hstack(
+        (np.zeros((m, 1, config.num_classes)), xs[:, 0:, :])
     )
 
     return xs
@@ -324,13 +326,13 @@ def train_model(xs, num_classes, batch_size=32, epochs=50):
 
     m = len(xs)
 
-    xs = np.hstack(
-        (np.zeros((m, 1, num_classes)), xs[:, 0:, :])
-    )
-
     ys = np.hstack(
         (xs[:, 1:, :], np.zeros((m, 1, num_classes)))
     )
+
+    model.compile(optimizer='adam', loss='categorical_crossentropy',
+                  metrics=['accuracy'])
+    model.summary()
 
     model.fit(xs, ys, batch_size=batch_size, epochs=epochs)
     return model
@@ -350,6 +352,33 @@ of a batch of images into K = 10 classes. The function name is
 containing generative models for each digit, and a Numpy array 
 of images of shape (number of images, height, width). The function 
 returns an array of class predictions, one class per image.
+
+```
+def classify(models_dir, images):
+    xs = pre_process(images)
+    pixels = np.array(np.argmax(xs, axis=2), dtype=np.uint32)
+
+    m, Tx, n = xs.shape
+    K = 10
+
+    image_indices = np.array([[i] * Tx for i in range(m)], dtype=np.uint32)
+    sequence_indices = np.zeros((m, Tx), dtype=np.uint32)
+    sequence_indices[:] = np.arange(Tx)
+
+    prob_x = np.zeros((K, m))
+
+    for k in range(K):
+        path = os.path.join(models_dir, 'model_{}.h5'.format(k))
+        model = load_model(path)
+
+        pmf_seqs = model.predict(xs_extra)
+
+        probabilities = pmf_seqs[image_indices, sequence_indices, pixels]
+
+        prob_x[k] = np.prod(probabilities, axis=1)
+
+    return np.argmax(prob_x, axis=0)
+```
 
 This function makes heavy use of vectorization to optimize 
 computation, therefore it is harder to read. First, the function 

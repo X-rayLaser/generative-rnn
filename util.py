@@ -17,9 +17,6 @@ def create_model(one_hot_len):
     model.add(TimeDistributed(Dense(units=one_hot_len)))
     model.add(Activation(activation='softmax'))
 
-    model.compile(optimizer='adam', loss='categorical_crossentropy',
-                  metrics=['accuracy'])
-    model.summary()
     return model
 
 
@@ -43,9 +40,14 @@ def pre_process(images):
     images = np.array(np.round(images / config.factor), dtype=np.uint8)
 
     h, w = images[0].shape
+    m = len(images)
 
     xs = to_categorical(images, num_classes=config.num_classes).reshape(
         -1, h ** 2, config.num_classes
+    )
+
+    xs = np.hstack(
+        (np.zeros((m, 1, config.num_classes)), xs[:, 0:, :])
     )
 
     return xs
@@ -56,13 +58,13 @@ def train_model(xs, num_classes, batch_size=32, epochs=50):
 
     m = len(xs)
 
-    xs = np.hstack(
-        (np.zeros((m, 1, num_classes)), xs[:, 0:, :])
-    )
-
     ys = np.hstack(
         (xs[:, 1:, :], np.zeros((m, 1, num_classes)))
     )
+
+    model.compile(optimizer='adam', loss='categorical_crossentropy',
+                  metrics=['accuracy'])
+    model.summary()
 
     model.fit(xs, ys, batch_size=batch_size, epochs=epochs)
     return model
@@ -75,10 +77,10 @@ def sample(model, image_size, num_classes):
             pixels[:i].reshape(1, i), num_classes=num_classes
         ).reshape(1, i, num_classes)
 
+        probs = model.predict(prefix)[0][-1]
+
         indices = list(range(num_classes))
-        indx = np.random.choice(indices, p=model.predict(prefix)[0][-1])
-        yhat = indx
-        pixels[i] = yhat
+        pixels[i] = np.random.choice(indices, p=probs)
 
     return pixels
 
@@ -88,18 +90,15 @@ def classify(models_dir, images):
     pixels = np.array(np.argmax(xs, axis=2), dtype=np.uint32)
 
     m, Tx, n = xs.shape
-
-    xs_extra = np.hstack(
-        (np.zeros((m, 1, n)), xs[:, 0:, :])
-    )
+    K = 10
 
     image_indices = np.array([[i] * Tx for i in range(m)], dtype=np.uint32)
     sequence_indices = np.zeros((m, Tx), dtype=np.uint32)
     sequence_indices[:] = np.arange(Tx)
 
-    prob_x = np.zeros((10, m))
+    prob_x = np.zeros((K, m))
 
-    for k in range(10):
+    for k in range(K):
         path = os.path.join(models_dir, 'model_{}.h5'.format(k))
         model = load_model(path)
 
@@ -109,5 +108,4 @@ def classify(models_dir, images):
 
         prob_x[k] = np.prod(probabilities, axis=1)
 
-    print(prob_x.max())
     return np.argmax(prob_x, axis=0)
