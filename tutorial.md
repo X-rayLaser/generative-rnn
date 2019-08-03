@@ -355,7 +355,9 @@ returns an array of class predictions, one class per image.
 
 ```
 def classify(models_dir, images):
-    xs = pre_process(images)
+    xs_extra = pre_process(images)
+    xs = xs_extra[:, 1:, :]
+
     pixels = np.array(np.argmax(xs, axis=2), dtype=np.uint32)
 
     m, Tx, n = xs.shape
