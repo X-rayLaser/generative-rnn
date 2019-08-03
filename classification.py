@@ -2,11 +2,24 @@ import numpy as np
 from keras.datasets import mnist
 from util import classify
 
-_, (x_test, y_test) = mnist.load_data()
 
-x_test = x_test[:100]
-y_test = y_test[:100]
+def estimate_accuracy(num_images):
+    _, (x_test, y_test) = mnist.load_data()
 
-predictions = classify(models_dir='trained/mnist_models', images=x_test)
+    x_test = x_test[:num_images]
+    y_test = y_test[:num_images]
 
-print('Classification accuracy:', np.mean(y_test == predictions))
+    predictions = classify(models_dir='trained/mnist_models', images=x_test)
+    return np.mean(y_test == predictions)
+
+
+if __name__ == '__main__':
+    import argparse
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--num_images', type=int, default=1000)
+    args = parser.parse_args()
+
+    accuracy = estimate_accuracy(args.num_images)
+
+    print('Classification accuracy on a test set:', accuracy)

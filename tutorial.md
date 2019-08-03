@@ -400,3 +400,187 @@ vectorized implementation allows computing likelihoods of
 all images at once. Once the function computes likelihoods 
 using all K models, for each image it picks a class for which 
 the likelihood is the highest.
+
+### Implementing sampling
+Let's implement the "sample" function. It takes 3 parameters: 
+model, image_size and num_classes.
+
+```
+def sample(model, image_size, num_classes):
+    pixels = np.zeros((image_size ** 2, 1), dtype=np.uint8)
+    for i in range(1, image_size ** 2):
+        prefix = to_categorical(
+            pixels[:i].reshape(1, i), num_classes=num_classes
+        ).reshape(1, i, num_classes)
+
+        probs = model.predict(prefix)[0][-1]
+
+        indices = list(range(num_classes))
+        pixels[i] = np.random.choice(indices, p=probs)
+
+    return pixels
+```
+
+We start by initializing a Numpy array of shape 
+(image_size * image_size, 1) and fill it with zeros. Then we 
+use the intensity of the first pixel (which is zero), turn it 
+into a sequence consisting of one-hot vector, feed it into our 
+model and get probability distribution over the next pixel 
+intensity. Then we randomly sample the intensity of the next 
+pixel according to the probability distribution we just got. 
+This sampled integer value gets stored in the array.
+
+Then, we use the first 2 predicted pixels to predict the next 
+pixel. Then we use the first 3 predicted pixels to predict 
+4th pixel. We repeat this process to predict all the 
+remaining pixels and return the array.
+
+### Final touches
+Now all that is left to do is to write a code that calls the 
+functions implemented earlier to train the model, classify 
+images and sample digits.
+
+Open "train_mnist.py" file in the editor. First, we import 
+the necessary modules at the top of the file. 
+Then we write a function "train".
+The function loads the MNIST dataset. Then it takes a subset 
+of images with the digit. Then it turns images into 
+sequences, trains the model on those sequences and saves it 
+in the file.
+We also write additional boilerplate code to allows us to 
+execute the script from the command line and pass arguments.
+
+```
+from keras.datasets import mnist
+import config
+from util import train_model, pre_process
+
+
+def train(digit=0, num_images=100, epochs=50):
+    x_train, y_train, _ = mnist.load_data()
+
+    x_train = x_train[(y_train == digit)]
+
+    x_train = x_train[:num_images]
+
+    xs = pre_process(x_train)
+
+    model = train_model(xs, config.num_classes, epochs=epochs)
+
+    model.save('trained/mnist_models/model_{}.h5'.format(digit))
+
+
+if __name__ == '__main__':
+    import argparse
+    import argparse
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--digit', type=int, default=0)
+    parser.add_argument('--num_images', type=int, default=100)
+    parser.add_argument('--epochs', type=int, default=50)
+    parser.add_argument('--all_digits', type=bool, default=False)
+
+    args = parser.parse_args()
+
+    if args.all_digits:
+        for i in range(10):
+            train(digit=i, num_images=args.num_images, epochs=args.epochs)
+            print('Model for digit {} is finished'.format(i))
+    else:
+        train(digit=args.digit, num_images=args.num_images, epochs=args.epochs)
+```
+
+Now switch to the "generate_mnist.py" file in the editor. 
+Again, we import all of the required modules. We now implement a 
+function "generate". The function draws a grid of sampled 
+images containing a particular digit and shows using Pillow library.
+
+To create each image, this function calls the "sample" function 
+that we wrote earlier. The resulting image pixels are multiplied 
+by a certain factor to bring pixel intensities back to the 0-255 
+range. Finally, the array is reshaped, converted into an actual 
+image and added to the grid. Once again, we add a little more 
+code to conveniently run the script from the command line.
+
+```
+from util import sample, shrink
+from keras.models import load_model
+from keras.preprocessing.image import array_to_img
+import config
+import numpy as np
+from PIL import ImageDraw, Image
+
+
+def generate(digit=0, output_size=32, grid_size=5):
+    model = load_model('trained/mnist_models/model_{}.h5'.format(digit))
+
+    a = np.zeros((output_size * grid_size, output_size * grid_size),
+                 dtype=np.uint8)
+
+    im = Image.fromarray(a, mode='L')
+
+    canvas = ImageDraw.ImageDraw(im)
+
+    for i in range(grid_size):
+        for j in range(grid_size):
+            pixels = sample(model, config.target_size, config.num_classes)
+
+            a = np.array(pixels * config.factor, dtype=np.uint8)
+
+            a = a.reshape((config.target_size, config.target_size, 1))
+            image = array_to_img(shrink(a, size=output_size))
+            canvas.bitmap((j * output_size, i * output_size), image, fill=255)
+
+    im.show()
+
+
+if __name__ == '__main__':
+    import argparse
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--digit', type=int, default=0)
+    args = parser.parse_args()
+
+    generate(digit=args.digit)
+```
+
+Finally, switch to the "classification.py" file. Import the 
+necessary modules and implement the function "estimate_accuracy". 
+As its name suggests, the function estimates classification 
+accuracy of the ML pipeline on MNIST test dataset. In our case, 
+we need the whole fleet of models, one for each digit.
+
+This is the easiest one. The function loads MNIST test data 
+and calls the "classify" function. It then compares the vector 
+of predictions with a vector of ground true classes and computes 
+the fraction of correctly classified images. And once again, 
+there is a simple boilerplate code to allow users to call the 
+code from the command line.
+
+```
+import numpy as np
+from keras.datasets import mnist
+from util import classify
+
+
+def estimate_accuracy(num_images):
+    _, (x_test, y_test) = mnist.load_data()
+
+    x_test = x_test[:num_images]
+    y_test = y_test[:num_images]
+
+    predictions = classify(models_dir='trained/mnist_models', images=x_test)
+    return np.mean(y_test == predictions)
+
+
+if __name__ == '__main__':
+    import argparse
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--num_images', type=int, default=100)
+    args = parser.parse_args()
+
+    accuracy = estimate_accuracy(args.num_images)
+
+    print('Classification accuracy on a test set:', accuracy)
+```
