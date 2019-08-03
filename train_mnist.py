@@ -4,7 +4,7 @@ from util import train_model, pre_process
 
 
 def train(digit=0, num_images=100, epochs=50):
-    x_train, y_train, _ = mnist.load_data()
+    (x_train, y_train), _ = mnist.load_data()
 
     x_train = x_train[(y_train == digit)]
 
