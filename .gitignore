@@ -1,4 +1,4 @@
 *.pyc
 venv/
-trained/
+trained/cifar_models/
 \.idea/
