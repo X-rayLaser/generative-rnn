@@ -57,7 +57,7 @@ python classification.py --num_images=500
 
 Train a model on a digit "8" using 200 MNIST images for 100 epochs
 ```
-python train_mnist.py --num_images=200 --epochs=100
+python train_mnist.py --digit=8 --num_images=200 --epochs=100
 ```
 
 Train all 10 models, one for each digit for 10 epochs on 1000 images
